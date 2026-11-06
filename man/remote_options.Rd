@@ -6,9 +6,9 @@
 \usage{
 remote_options(
   token = Sys.getenv("MODELSCLOUD_TOKEN"),
-  async = FALSE,
+  async = TRUE,
   seed = NULL,
-  poll = 2,
+  poll = 1,
   timeout = 3600,
   url = getOption("voiremote.url", "https://core.modelscloud.resp.core.ubc.ca"),
   service = getOption("voiremote.service", "resplab/voipexa")
@@ -19,9 +19,9 @@ remote_options(
 environment variable \code{MODELSCLOUD_TOKEN} (for example, set in
 \verb{~/.Renviron}). Keys are personal; do not share them.}
 
-\item{async}{If \code{TRUE}, the job runs in the background on ModelsCloud and
-this session checks for the result every \code{poll} seconds. Use it for slow
-methods (INLA, GP or BART with many samples).}
+\item{async}{If \code{TRUE} (the default), the job runs in the background on
+ModelsCloud and this session checks for the result every \code{poll} seconds.
+Synchronous calls (\code{FALSE}) are cut off by ModelsCloud after 60 seconds.}
 
 \item{seed}{Seed set on ModelsCloud before the call. If \code{NULL}, one is drawn
 from this session's random number generator, so \code{set.seed()} here makes a

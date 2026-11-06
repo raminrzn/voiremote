@@ -24,7 +24,7 @@ evpi_remote <- function(outputs, nsim = NULL, .remote = remote_options()) {
 evppi_remote <- function(outputs, inputs, pars = NULL, method = NULL, se = FALSE,
                          B = 1000, nsim = NULL, verbose = FALSE, check = FALSE, ...,
                          .remote = remote_options()) {
-  .vr_run("evppi", .vr_args(match.call(), parent.frame()), .remote)
+  .vr_run("evppi", .vr_trim_inputs(.vr_args(match.call(), parent.frame())), .remote)
 }
 
 #' EVPPI for the variance of an outcome, on ModelsCloud
@@ -36,7 +36,7 @@ evppi_remote <- function(outputs, inputs, pars = NULL, method = NULL, se = FALSE
 #' @export
 evppivar_remote <- function(outputs, inputs, pars = NULL, method = NULL, nsim = NULL,
                             verbose = TRUE, ..., .remote = remote_options()) {
-  .vr_run("evppivar", .vr_args(match.call(), parent.frame()), .remote)
+  .vr_run("evppivar", .vr_trim_inputs(.vr_args(match.call(), parent.frame())), .remote)
 }
 
 #' Expected value of sample information, on ModelsCloud
@@ -106,4 +106,15 @@ enbs_opt_remote <- function(x, pcut = 0.05, smooth = FALSE, smooth_df = NULL,
 #' @export
 pop_voi_remote <- function(voi, pop, time, dis = 0.035, .remote = remote_options()) {
   .vr_run("pop_voi", .vr_args(match.call(), parent.frame()), .remote)
+}
+
+# EVPPI uses only the columns of `inputs` named in `pars`, so only those are
+# sent; the result is the same and the request much smaller.
+.vr_trim_inputs <- function(args) {
+  x <- args$inputs
+  p <- unique(unlist(args$pars))
+  if ((is.data.frame(x) || is.matrix(x)) && length(p) > 0 && all(p %in% colnames(x))) {
+    args$inputs <- x[, colnames(x) %in% p, drop = FALSE]
+  }
+  args
 }

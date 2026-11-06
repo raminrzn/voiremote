@@ -3,9 +3,9 @@
 #' @param token Your ModelsCloud Access Key. By default it is read from the
 #'   environment variable `MODELSCLOUD_TOKEN` (for example, set in
 #'   `~/.Renviron`). Keys are personal; do not share them.
-#' @param async If `TRUE`, the job runs in the background on ModelsCloud and
-#'   this session checks for the result every `poll` seconds. Use it for slow
-#'   methods (INLA, GP or BART with many samples).
+#' @param async If `TRUE` (the default), the job runs in the background on
+#'   ModelsCloud and this session checks for the result every `poll` seconds.
+#'   Synchronous calls (`FALSE`) are cut off by ModelsCloud after 60 seconds.
 #' @param seed Seed set on ModelsCloud before the call. If `NULL`, one is drawn
 #'   from this session's random number generator, so `set.seed()` here makes a
 #'   remote run repeatable.
@@ -15,8 +15,8 @@
 #' @param service Collection and model name of the voi service.
 #' @return A list of options.
 #' @export
-remote_options <- function(token = Sys.getenv("MODELSCLOUD_TOKEN"), async = FALSE,
-                           seed = NULL, poll = 2, timeout = 3600,
+remote_options <- function(token = Sys.getenv("MODELSCLOUD_TOKEN"), async = TRUE,
+                           seed = NULL, poll = 1, timeout = 3600,
                            url = getOption("voiremote.url",
                                            "https://core.modelscloud.resp.core.ubc.ca"),
                            service = getOption("voiremote.service", "resplab/voipexa")) {
@@ -68,12 +68,23 @@ remote_options <- function(token = Sys.getenv("MODELSCLOUD_TOKEN"), async = FALS
   lapply(a, eval, envir = env)
 }
 
-# Turns the service output (JSON arrays of length one, as ModelsCloud returns
-# them) into a plain list.
+# Turns the service output into a plain list. ModelsCloud returns each value
+# as a JSON array (often of length one), as text or already parsed.
 .vr_unbox <- function(out) {
-  if (is.character(out)) out <- jsonlite::fromJSON(out, simplifyVector = TRUE)
+  if (is.character(out) && length(out) == 1L) {
+    out <- jsonlite::fromJSON(out, simplifyVector = FALSE)
+  }
   if (is.list(out) && is.null(names(out)) && length(out) == 1L) out <- out[[1]]
-  lapply(out, function(v) if (is.list(v) || length(v) != 1L) v else v[[1]])
+  scalars <- function(v) {
+    is.list(v) && length(v) > 0 &&
+      all(vapply(v, function(e) is.atomic(e) && length(e) == 1L, logical(1)))
+  }
+  simplify <- function(v) {
+    if (scalars(v)) return(unlist(v))
+    if (is.list(v) && !is.null(names(v))) return(lapply(v, simplify))
+    v
+  }
+  lapply(out, simplify)
 }
 
 .vr_transport <- function(input, opts) {
@@ -87,7 +98,9 @@ remote_options <- function(token = Sys.getenv("MODELSCLOUD_TOKEN"), async = FALS
     stop("No ModelsCloud Access Key: set MODELSCLOUD_TOKEN (for example in ",
          "~/.Renviron) or pass remote_options(token = ...).", call. = FALSE)
   }
-  body <- c(list(processMode = if (isTRUE(opts$async)) "Async" else "Synch"), input)
+  if (isTRUE(opts$async)) input$async <- TRUE
+  body <- list(processMode = if (isTRUE(opts$async)) "Async" else "Synch",
+               funcInput = input)
   r <- .vr_post(paste0(opts$url, "/call/v2/", opts$service), body, opts$token)
   if (identical(r$result, "running") || identical(r$result, "created")) {
     t0 <- Sys.time()
@@ -111,12 +124,16 @@ remote_options <- function(token = Sys.getenv("MODELSCLOUD_TOKEN"), async = FALS
 }
 
 .vr_post <- function(url, body, token) {
+  json <- jsonlite::toJSON(body, auto_unbox = TRUE, null = "null", digits = NA)
+  if (nchar(json, type = "bytes") > .vr_max_request) {
+    stop("The request is ", format(round(nchar(json, type = "bytes") / 1e6, 1)),
+         " MB; ModelsCloud currently accepts about 1 MB. Use fewer simulations ",
+         "(nsim) for now.", call. = FALSE)
+  }
   h <- curl::new_handle()
   curl::handle_setheaders(h, Authorization = paste("Bearer", token),
                           "Content-Type" = "application/json")
-  curl::handle_setopt(h, post = TRUE,
-                      postfields = jsonlite::toJSON(body, auto_unbox = TRUE, null = "null",
-                                                    digits = NA))
+  curl::handle_setopt(h, post = TRUE, postfields = json)
   resp <- curl::curl_fetch_memory(url, handle = h)
   txt <- rawToChar(resp$content)
   if (resp$status_code >= 400) {
@@ -125,6 +142,10 @@ remote_options <- function(token = Sys.getenv("MODELSCLOUD_TOKEN"), async = FALS
   }
   jsonlite::fromJSON(txt, simplifyVector = FALSE)
 }
+
+# Largest request body ModelsCloud accepted when tested on 2026-11-06
+# (1.02 MB passed, 1.07 MB was refused).
+.vr_max_request <- 1e6
 
 `%||%` <- function(a, b) if (is.null(a)) b else a
 
