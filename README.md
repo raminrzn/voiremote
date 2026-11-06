@@ -61,6 +61,29 @@ SEs; EVPPI of a variance; EVSI by gam and importance sampling; ENBS (voi's
 own test case, -9,250,000); optimal sample size; and population VoI. Results
 are identical, given the same seed for random methods.
 
+Live check on ModelsCloud (`/resplab/voipexa`, 2026-11-06), EVPPI of the
+chemotherapy example (first 200 samples), synchronous and asynchronous:
+
+| Parameters | Local voi | Service |
+|---|---|---|
+| p_side_effects_t1 | 55.346060028930 | 55.346060031551 |
+| both side-effect probabilities | 330.343466804433 | 330.343466804433 |
+
+The service runs R 4.5 and a newer mgcv than the local machine (R 4.4); the
+regression fit differs from about the tenth significant digit.
+
+## Status
+
+The service is in Test, not yet published. Two things are needed on the
+server, from the platform administrators:
+
+- **INLA** (`method = "inla"`). INLA installs, but its `fmesher` dependency
+  needs `sf`, which needs the GDAL, GEOS, PROJ and udunits system libraries.
+- **JAGS** (`evsi(method = "mm")`).
+
+Requests are limited to about 1 MB for now, roughly 90,000 numbers. EVPPI
+sends only the parameter columns analysed; otherwise reduce `nsim`.
+
 ## Licence
 
 GPL-3, as voi.
