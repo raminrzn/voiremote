@@ -106,3 +106,12 @@ test_that("the service reports its versions", {
   i <- voi_remote_info()
   expect_equal(i$versions$voi, as.character(packageVersion("voi")))
 })
+
+test_that("voi datasets can be sent by reference", {
+  local_service()
+  same_result(evppi_remote(voi_data("chemo_nb"), voi_data("chemo_pars"), pars = p1),
+              voi::evppi(nb, pars, pars = p1))
+  same_result(evppivar_remote(voi_data("chemo_cea", "e", "Novel"), voi_data("chemo_pars"),
+                              pars = p1, verbose = FALSE),
+              voi::evppivar(voi::chemo_cea$e[, "Novel"], pars, pars = p1, verbose = FALSE))
+})

@@ -12,6 +12,9 @@
     lapply(a, .vr_encode)
   }
   b64 <- function(r) jsonlite::base64_enc(r)
+  if (inherits(x, "vr_voi_data")) {
+    return(list(t = "voi_data", name = x$name, get = lapply(x$get, function(k) k)))
+  }
   out <- if (is.null(x)) {
     list(t = "null")
   } else if (is.function(x) || is.environment(x) || is.language(x) ||
@@ -41,6 +44,7 @@
 
 .vr_decode <- function(e) {
   if (is.null(e$t)) stop("Malformed encoded object.", call. = FALSE)
+  if (identical(e$t, "voi_data")) return(.vr_voi_data(e$name, e$get))
   b64 <- function(s) if (length(s) == 0 || identical(s, "")) raw() else jsonlite::base64_dec(s)
   x <- switch(e$t,
     null = return(NULL),
@@ -70,3 +74,32 @@
 }
 
 .vr_from_json <- function(txt) jsonlite::fromJSON(txt, simplifyVector = FALSE)
+
+# A reference to one of voi's example datasets, optionally narrowed by a path
+# of list elements or matrix/data frame columns (names or positions). Lets a
+# request use the 10,000-sample examples without sending them.
+.vr_voi_data <- function(name, get = NULL) {
+  name <- as.character(unlist(name))
+  known <- utils::data(package = "voi")$results[, "Item"]
+  if (length(name) != 1L || !name %in% known) {
+    stop("Unknown voi dataset: ", paste(name, collapse = ","), ". Available: ",
+         paste(known, collapse = ", "), ".", call. = FALSE)
+  }
+  x <- getExportedValue("voi", name)
+  for (k in unlist(get)) {
+    x <- if (is.matrix(x) || is.data.frame(x)) x[, k] else x[[k]]
+  }
+  x
+}
+
+#' Refer to a voi example dataset by name
+#'
+#' Sends only the name: the service uses its own copy of the dataset.
+#' @param name One of voi's datasets, such as `"chemo_nb"` or `"chemo_pars"`.
+#' @param ... Optional path: list elements, then columns, by name or position
+#'   (for example `voi_data("chemo_cea", "e", "Novel")`).
+#' @return An object that the remote functions send as a reference.
+#' @export
+voi_data <- function(name, ...) {
+  structure(list(name = name, get = list(...)), class = "vr_voi_data")
+}
