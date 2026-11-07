@@ -84,8 +84,9 @@ local service only, as its input (the ENBS table) exceeds the request limit.
 
 ## Status
 
-The service is in Test, not yet published. Two things are needed on the
-server, from the platform administrators:
+The service is published (`/resplab/voipexa`, 2026-11-07); anyone with a
+ModelsCloud account and Access Key can use it. Two things are still needed on
+the server, from the platform administrators:
 
 - **INLA** (`method = "inla"`). INLA installs, but its `fmesher` dependency
   needs `sf`, which needs the GDAL, GEOS, PROJ and udunits system libraries.
