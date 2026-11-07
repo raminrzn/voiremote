@@ -61,16 +61,26 @@ SEs; EVPPI of a variance; EVSI by gam and importance sampling; ENBS (voi's
 own test case, -9,250,000); optimal sample size; and population VoI. Results
 are identical, given the same seed for random methods.
 
-Live check on ModelsCloud (`/resplab/voipexa`, 2026-11-06), EVPPI of the
-chemotherapy example (first 200 samples), synchronous and asynchronous:
+Live check on ModelsCloud (`/resplab/voipexa`, 2026-11-07): every feature
+that needs neither INLA nor JAGS was run on the service with voi's example
+data (10,000 samples, sent by reference with `voi_data()`), asynchronously,
+and compared with voi run locally:
 
-| Parameters | Local voi | Service |
+| Function | Variants run | Largest relative difference |
 |---|---|---|
-| p_side_effects_t1 | 55.346060028930 | 55.346060031551 |
-| both side-effect probabilities | 330.343466804433 | 330.343466804433 |
+| `evpi` | net benefit; costs and effects, 5 WTP values | 4e-11 |
+| `evppi` | gam (1 and 2 parameters); costs and effects | 5e-8 |
+| `evppi` | gp, earth, bart, so, sal; bootstrap SE | 9e-12 |
+| `evppivar` | 1 and 2 parameters | 9e-12 |
+| `evsi` | `trial_binary` by gam and by importance sampling; `binary` | 6e-9 |
+| `evsivar` | `binary` | 1e-11 |
+| `enbs` | voi's test case (first ENBS -9,250,000; 15,030 rows) | 2e-16 |
+| `pop_voi` | 3 values | 0 |
 
-The service runs R 4.5 and a newer mgcv than the local machine (R 4.4); the
-regression fit differs from about the tenth significant digit.
+Random methods (bart, bootstrap SE, EVSI) gave the same answers given the
+same seed. The small differences come from the service's newer R (4.5) and
+packages; the data arrive bit for bit. `enbs_opt` was checked through the
+local service only, as its input (the ENBS table) exceeds the request limit.
 
 ## Status
 
